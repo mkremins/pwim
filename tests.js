@@ -1,17 +1,4 @@
-/// Test basic DB functionality. Does insertion, querying, and deletion work?
-
-const testDB = {};
-DB.insert(testDB, "foo.bar.baz");
-DB.insert(testDB, "foo.bar.woof");
-DB.insert(testDB, "foo.meow.woof");
-DB.insert(testDB, "fizz.buzz.foo");
-DB.insert(testDB, "some.other.woof");
-console.log(DB.dbToSentences(testDB));
-console.log(DB.unifyAll(["X.Y.woof", "fizz.buzz.X"], testDB));
-DB.retract(testDB, "foo.bar");
-console.log(DB.dbToSentences(testDB));
-
-/// Define some practices for testing Praxish proper.
+/// Define practices
 
 const greetPractice = {
   id: "greet",
@@ -430,17 +417,34 @@ const ticTacToePractice = {
   ]
 };
 
-// TODO Implement more practices:
-// - knowitalls
-// - darthVader
+/// Set up run loop
 
-/// Set up tick logic
+function determinePlayerAction(possibleActions) {
+  // get query from text input
+  const queryInput = document.getElementById("query");
+  const query = queryInput.value;
+  // set up the XHR
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", "http://localhost:10000");
+  xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+  xhr.onreadystatechange = () => {
+    if (xhr.readyState !== XMLHttpRequest.DONE) return;
+    console.log(xhr.responseText);
+    const rankedActions = JSON.parse(xhr.responseText);
+    console.log("ranked actions", rankedActions);
+    // TODO update UI to reflect the ranked actions? or just perform top one?
+  }
+  // send the XHR
+  xhr.send(JSON.stringify({actions: possibleActions, query: query}));
+}
 
-const playerActorIdx = 0; // no player actor
+const playerActorIdx = 0; // player actor is first
 let pausedForPlayer = false; // start unpaused
 
 function actuallyDoAction(praxishState, action) {
   const transcriptDiv = document.getElementById("transcript");
+  const [actorName, ...actionNameParts] = action.name.split(":");
+  const actionName = actionNameParts.join(":");
   const actionHTML = `<div class="action">${action.name}</div>`;
   transcriptDiv.innerHTML = actionHTML + transcriptDiv.innerHTML;
   console.log("Performing action ::", action.name, action);
@@ -467,6 +471,9 @@ function tick(praxishState) {
   if (praxishState.actorIdx === playerActorIdx) {
     // Pause and wait for the player to act
     pausedForPlayer = true;
+    // Update the query submit button to incorporate the current `possibleActions`
+    const submitQueryButton = document.getElementById("submit");
+    submitQueryButton.onclick = () => determinePlayerAction(possibleActions);
     // Render an input (button?) for each of the `possibleActions`
     const actionButtonsDiv = document.getElementById("actionbuttons");
     actionButtonsDiv.innerHTML = "";
@@ -531,14 +538,7 @@ function tick(praxishState) {
   actuallyDoAction(praxishState, actionToPerform);
 }
 
-/// Test Praxish: initialize a `testPraxishState`,
-/// yeet a practice instance in there, and start ticking.
-
-function doTicks(praxishState, n) {
-  for (let i = 0; i < n; i++) {
-    tick(praxishState);
-  }
-}
+/// Initialize our Praxish instance
 
 const testPraxishState = Praxish.createPraxishState();
 testPraxishState.allChars = [
@@ -596,28 +596,7 @@ Praxish.definePractice(testPraxishState, ticTacToePractice);
 Praxish.performOutcome(testPraxishState, "insert practice.ticTacToe.max.nic");
 Praxish.definePractice(testPraxishState, jukeboxPractice);
 Praxish.performOutcome(testPraxishState, "insert practice.jukebox.jukebox");
-window.setInterval(() => tick(testPraxishState), 1000);
 
-/*
-// First test with just the `greet` practice
-console.log("PRACTICE TEST: greet");
-Praxish.definePractice(testPraxishState, greetPractice);
-Praxish.performOutcome(testPraxishState, "insert practice.greet.max.isaac");
-Praxish.performOutcome(testPraxishState, "insert practice.greet.nic.max");
-doTicks(testPraxishState, 4);
-// Then introduce and test with the `tendBar` practice
-console.log("PRACTICE TEST: tendBar");
-Praxish.definePractice(testPraxishState, tendBarPractice);
-Praxish.performOutcome(testPraxishState, "insert practice.tendBar.isaac");
-doTicks(testPraxishState, 16);
-// Then test `ticTacToe` concurrently with the bar practice
-console.log("PRACTICE TEST: ticTacToe");
-Praxish.definePractice(testPraxishState, ticTacToePractice);
-Praxish.performOutcome(testPraxishState, "insert practice.ticTacToe.max.nic");
-doTicks(testPraxishState, 32);
-// Then test `jukebox` concurrently with the others
-console.log("PRACTICE TEST: jukebox");
-Praxish.definePractice(testPraxishState, jukeboxPractice);
-Praxish.performOutcome(testPraxishState, "insert practice.jukebox.jukebox");
-doTicks(testPraxishState, 24);
-*/
+/// Kick off the run loop
+
+window.setInterval(() => tick(testPraxishState), 1000);

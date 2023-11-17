@@ -6,6 +6,8 @@
   <title>Play What I Mean</title>
   <style>
   body { font-family: Georgia, serif; line-height: 1.5; margin: 0 auto; width: 720px; }
+  #query, #submit { font-size: 1.5rem; }
+  #query { width: 80%; }
   #actionbuttons { font-family: sans-serif; margin-bottom: 1rem; }
   #waitmsg { color: #555; font-style: italic; }
   .action { margin-bottom: 0.5rem; }
@@ -13,7 +15,10 @@
 </head>
 <body>
   <h1>Play What I Mean</h1>
-  <div id="actionbuttons"><span id="waitmsg">waiting for player's turn...</span></div>
+  <div id="controls">
+    <input id="query" type="text" placeholder="Type what you want to do..."><button id="submit">Submit</button>
+    <div id="actionbuttons"><span id="waitmsg">waiting for player's turn...</span></div>
+  </div>
   <div id="transcript"></div>
   <script src="db.js"></script>
   <script src="praxish.js"></script>
