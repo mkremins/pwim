@@ -419,10 +419,43 @@ const ticTacToePractice = {
 
 /// Set up run loop
 
-function determinePlayerAction(possibleActions) {
+const topActionsDiv = document.getElementById("priorityactions");
+const actionButtonsDiv = document.getElementById("otheractions");
+
+function actuallyDoAction(praxishState, action) {
+  const transcriptDiv = document.getElementById("transcript");
+  const [actorName, ...actionNameParts] = action.name.split(":");
+  const actionName = actionNameParts.join(":");
+  const actionHTML = `<div class="action">
+    <span class="actorname">${action.Actor}</span>
+    <span class="actionname">${action.cleanName}</span>
+  </div>`;
+  transcriptDiv.innerHTML = actionHTML + transcriptDiv.innerHTML;
+  console.log("Performing action ::", action.name, action);
+  Praxish.performAction(praxishState, action);
+}
+
+function makeActionButton(praxishState, action) {
+  const button = document.createElement("button");
+  button.innerText = action.cleanName;
+  button.onclick = ev => {
+    // Perform the action
+    actuallyDoAction(praxishState, action);
+    // Clear the top actions
+    topActionsDiv.innerHTML = "";
+    // Redisplay the waiting-for-NPCs message
+    actionButtonsDiv.innerHTML = `<span id="waitmsg">waiting for player's turn...</span>`;
+    // Unpause the tick loop
+    pausedForPlayer = false;
+  };
+  return button;
+}
+
+function submitPWIMQuery(praxishState, possibleActions) {
   // get query from text input
   const queryInput = document.getElementById("query");
   const query = queryInput.value;
+  queryInput.value = "";
   // set up the XHR
   var xhr = new XMLHttpRequest();
   xhr.open("POST", "http://localhost:10000");
@@ -432,7 +465,21 @@ function determinePlayerAction(possibleActions) {
     console.log(xhr.responseText);
     const rankedActions = JSON.parse(xhr.responseText);
     console.log("ranked actions", rankedActions);
-    // TODO update UI to reflect the ranked actions? or just perform top one?
+    // update UI to reflect the ranked actions
+    const numTopActions = 3;
+    const topActions = rankedActions.slice(0, numTopActions);
+    const otherActions = rankedActions.slice(numTopActions);
+    topActionsDiv.innerHTML = "";
+    for (const topAction of topActions) {
+      const button = makeActionButton(praxishState, topAction);
+      topActionsDiv.append(button);
+    }
+    const actionButtonsDiv = document.getElementById("otheractions");
+    actionButtonsDiv.innerHTML = "";
+    for (const fallbackAction of otherActions) {
+      const button = makeActionButton(praxishState, fallbackAction);
+      actionButtonsDiv.append(button);
+    }
   }
   // send the XHR
   xhr.send(JSON.stringify({actions: possibleActions, query: query}));
@@ -440,19 +487,6 @@ function determinePlayerAction(possibleActions) {
 
 const playerActorIdx = 0; // player actor is first
 let pausedForPlayer = false; // start unpaused
-
-function actuallyDoAction(praxishState, action) {
-  const transcriptDiv = document.getElementById("transcript");
-  const [actorName, ...actionNameParts] = action.name.split(":");
-  const actionName = actionNameParts.join(":");
-  const actionHTML = `<div class="action">
-    <span class="actorname">${action.actor}</span>
-    <span class="actionname">${action.cleanName}</span>
-  </div>`;
-  transcriptDiv.innerHTML = actionHTML + transcriptDiv.innerHTML;
-  console.log("Performing action ::", action.name, action);
-  Praxish.performAction(praxishState, action);
-}
 
 // Given a `praxishState`, determine whose turn it is to act,
 // select an action for that character to perform, and perform the action.
@@ -483,21 +517,11 @@ function tick(praxishState) {
     pausedForPlayer = true;
     // Update the query submit button to incorporate the current `possibleActions`
     const submitQueryButton = document.getElementById("submit");
-    submitQueryButton.onclick = () => determinePlayerAction(possibleActions);
+    submitQueryButton.onclick = () => submitPWIMQuery(praxishState, possibleActions);
     // Render an input (button?) for each of the `possibleActions`
-    const actionButtonsDiv = document.getElementById("actionbuttons");
     actionButtonsDiv.innerHTML = "";
     for (const possibleAction of possibleActions) {
-      const button = document.createElement("button");
-      button.innerText = possibleAction.cleanName;
-      button.onclick = ev => {
-        // Perform the action
-        actuallyDoAction(praxishState, possibleAction);
-        // Redisplay the waiting-for-NPCs message
-        actionButtonsDiv.innerHTML = `<span id="waitmsg">waiting for player's turn...</span>`;
-        // Unpause the tick loop
-        pausedForPlayer = false;
-      };
+      const button = makeActionButton(praxishState, possibleAction);
       actionButtonsDiv.appendChild(button);
     }
     // Break out early
