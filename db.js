@@ -1,13 +1,3 @@
-// Return a (deep) clone of any JSON-compatible `obj`.
-function clone(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
-
-// Return whether the character `c` is an uppercase letter.
-function isUppercase(c) {
-  return /[A-Z]/.test(c);
-}
-
 // Declare the DB module to which API functions will be attached.
 const DB = {};
 

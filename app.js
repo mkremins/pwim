@@ -452,14 +452,6 @@ function makeActionButton(praxishState, action) {
   return button;
 }
 
-function scale(num, oldScale, newScale) {
-  const [oldMin, oldMax] = oldScale;
-  const [newMin, newMax] = newScale;
-  const oldRange = oldMax - oldMin;
-  const newRange = newMax - newMin;
-  return (((num - oldMin) / oldRange) * newRange) + newMin;
-}
-
 function submitPWIMQuery(praxishState, possibleActions) {
   // get query from text input
   const query = queryInput.value;

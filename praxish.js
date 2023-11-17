@@ -1,8 +1,3 @@
-// Return a random item from a list.
-function randNth(items) {
-  return items[Math.floor(Math.random() * items.length)];
-}
-
 // Declare the Praxish module to which API functions will be attached.
 const Praxish = {};
 
