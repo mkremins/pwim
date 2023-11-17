@@ -451,6 +451,14 @@ function makeActionButton(praxishState, action) {
   return button;
 }
 
+function scale(num, oldScale, newScale) {
+  const [oldMin, oldMax] = oldScale;
+  const [newMin, newMax] = newScale;
+  const oldRange = oldMax - oldMin;
+  const newRange = newMax - newMin;
+  return (((num - oldMin) / oldRange) * newRange) + newMin;
+}
+
 function submitPWIMQuery(praxishState, possibleActions) {
   // get query from text input
   const queryInput = document.getElementById("query");
@@ -469,15 +477,29 @@ function submitPWIMQuery(praxishState, possibleActions) {
     const numTopActions = 3;
     const topActions = rankedActions.slice(0, numTopActions);
     const otherActions = rankedActions.slice(numTopActions);
+    const highestPWIMScore = rankedActions[0].pwimScore;
+    const lowestPWIMScore = rankedActions[rankedActions.length - 1].pwimScore;
     topActionsDiv.innerHTML = "";
     for (const topAction of topActions) {
+      const bgcolor = scale(
+        topAction.pwimScore,
+        [lowestPWIMScore, highestPWIMScore],
+        [170, 0]
+      );
       const button = makeActionButton(praxishState, topAction);
+      button.style.backgroundColor = `rgb(${bgcolor},${bgcolor},${bgcolor})`;
       topActionsDiv.append(button);
     }
     const actionButtonsDiv = document.getElementById("otheractions");
     actionButtonsDiv.innerHTML = "";
     for (const fallbackAction of otherActions) {
+      const bgcolor = scale(
+        fallbackAction.pwimScore,
+        [lowestPWIMScore, highestPWIMScore],
+        [170, 0]
+      );
       const button = makeActionButton(praxishState, fallbackAction);
+      button.style.backgroundColor = `rgb(${bgcolor},${bgcolor},${bgcolor})`;
       actionButtonsDiv.append(button);
     }
   }
