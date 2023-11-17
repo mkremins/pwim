@@ -445,7 +445,10 @@ function actuallyDoAction(praxishState, action) {
   const transcriptDiv = document.getElementById("transcript");
   const [actorName, ...actionNameParts] = action.name.split(":");
   const actionName = actionNameParts.join(":");
-  const actionHTML = `<div class="action">${action.name}</div>`;
+  const actionHTML = `<div class="action">
+    <span class="actorname">${action.actor}</span>
+    <span class="actionname">${action.cleanName}</span>
+  </div>`;
   transcriptDiv.innerHTML = actionHTML + transcriptDiv.innerHTML;
   console.log("Performing action ::", action.name, action);
   Praxish.performAction(praxishState, action);
@@ -462,6 +465,13 @@ function tick(praxishState) {
   const actor = praxishState.allChars[praxishState.actorIdx];
   // Get all possible actions for the current actor.
   const possibleActions = Praxish.getAllPossibleActions(praxishState, actor.name);
+  // Assign each action a "clean name" that doesn't include the actor name as a prefix.
+  // FIXME Push this up into Praxish core instead of prepending actor name by default?
+  possibleActions.forEach(action => {
+    const [actorName, ...actionNameParts] = action.name.split(":");
+    const actionName = actionNameParts.join(":").trim();
+    action.cleanName = actionName;
+  });
   // Figure out what action to perform.
   // Player actors should defer action performance to the UI;
   // practice-bound actors should perform random available actions from their practice;
@@ -479,7 +489,7 @@ function tick(praxishState) {
     actionButtonsDiv.innerHTML = "";
     for (const possibleAction of possibleActions) {
       const button = document.createElement("button");
-      button.innerText = possibleAction.name;
+      button.innerText = possibleAction.cleanName;
       button.onclick = ev => {
         // Perform the action
         actuallyDoAction(praxishState, possibleAction);

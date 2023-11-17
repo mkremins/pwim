@@ -10,9 +10,9 @@ def score(actions, query):
   # for each action: translate to a sentence, embed this sentence,
   # and record this sentence's semantic similarity to the query
   for action in actions:
-    action_str = action["name"].split(":", 1)[1] + " (" + action["practiceID"] + ")"
+    action_str = action["cleanName"] + " (" + action["practiceID"] + ")"
     #print(action_str)
-    action_embedding = model.encode(action["name"])
+    action_embedding = model.encode(action_str)
     similarity = util.cos_sim([action_embedding], [query_embedding])[0].item()
     action["pwimScore"] = similarity
   # return list of actions sorted by embedding closeness to query
