@@ -419,6 +419,7 @@ const ticTacToePractice = {
 
 /// Set up run loop
 
+const queryInput = document.getElementById("query");
 const topActionsDiv = document.getElementById("priorityactions");
 const actionButtonsDiv = document.getElementById("otheractions");
 
@@ -461,7 +462,6 @@ function scale(num, oldScale, newScale) {
 
 function submitPWIMQuery(praxishState, possibleActions) {
   // get query from text input
-  const queryInput = document.getElementById("query");
   const query = queryInput.value;
   queryInput.value = "";
   // set up the XHR
@@ -490,6 +490,7 @@ function submitPWIMQuery(praxishState, possibleActions) {
       button.style.backgroundColor = `rgb(${bgcolor},${bgcolor},${bgcolor})`;
       topActionsDiv.append(button);
     }
+    topActionsDiv.firstChild.focus(); // focus the first top-action button
     const actionButtonsDiv = document.getElementById("otheractions");
     actionButtonsDiv.innerHTML = "";
     for (const fallbackAction of otherActions) {
@@ -537,9 +538,16 @@ function tick(praxishState) {
   if (praxishState.actorIdx === playerActorIdx) {
     // Pause and wait for the player to act
     pausedForPlayer = true;
-    // Update the query submit button to incorporate the current `possibleActions`
+    // Focus the query input
+    queryInput.focus();
+    // Update the query submit button to incorporate the current `possibleActions`,
+    // and attach the same behavior to the Enter key on the query input
     const submitQueryButton = document.getElementById("submit");
     submitQueryButton.onclick = () => submitPWIMQuery(praxishState, possibleActions);
+    queryInput.onkeyup = ev => {
+      if (ev.key !== "Enter") return;
+      submitQueryButton.click();
+    };
     // Render an input (button?) for each of the `possibleActions`
     actionButtonsDiv.innerHTML = "";
     for (const possibleAction of possibleActions) {
