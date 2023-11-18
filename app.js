@@ -503,6 +503,72 @@ function submitPWIMQuery(praxishState, possibleActions) {
 const playerActorIdx = 0; // player actor is first
 let pausedForPlayer = false; // start unpaused
 
+// Given a list of `scoredActions` for a particular actor,
+// return the action that the actor should actually perform.
+function pickAction(scoredActions) {
+  if (!scoredActions) return null;
+  const topScore = scoredActions[0].score;
+  const firstNonTopscoringIdx = scoredActions.findIndex(pa => pa.score < topScore);
+  if (firstNonTopscoringIdx > -1) {
+    const bestScoringActions = scoredActions.slice(0, firstNonTopscoringIdx);
+    return randNth(bestScoringActions);
+  }
+  return randNth(scoredActions);
+}
+
+// Given a `praxishState`, an `actor`, and a `searchDepth` (default: 0),
+// return a list of possible actions that the `actor` can perform,
+// sorted by a numeric `score` property representing how much utility
+// the `actor` can expect to get from performing each action.
+function scoreActions(praxishState, actor, searchDepth) {
+  searchDepth = searchDepth || 0;
+  let possibleActions = Praxish.getAllPossibleActions(praxishState, actor.name);
+  // For practice-bound actors, filter possible actions to just those from the bound practice.
+  // FIXME We should probably move this logic into `getAllPossibleActions`
+  // so that we don't waste time generating actions that will never be performed.
+  if (actor.boundToPractice) {
+    possibleActions = possibleActions.filter(pa => pa.practiceID === actor.boundToPractice);
+  }
+  // Bail out early if no possible actions.
+  if (possibleActions.length === 0) return null;
+  // Speculatively perform each possible action
+  // and score the outcome according to the actor's goals.
+  for (const possibleAction of possibleActions) {
+    const prevDB = clone(praxishState.db);
+    Praxish.performAction(praxishState, possibleAction);
+    possibleAction.score = 0;
+    for (const goal of actor.goals || []) {
+      const results = Praxish.query(praxishState.db, goal.conditions, {});
+      possibleAction.score += (goal.utility * results.length);
+      if (searchDepth > 0) {
+        // Predict what we'll do in the future if we decide to take this action now,
+        // and add the value of our predicted future actions to this action's score.
+        // FIXME Should we speculatively act once as each other actor here
+        // before we simulate our own next action, so that others' predicted responses
+        // to our own action are also taken into account?
+        const possibleNextActions = scoreActions(praxishState, actor, searchDepth - 1);
+        const predictedNextAction = pickAction(possibleNextActions);
+        const futureScore = predictedNextAction?.score || 0;
+        possibleAction.score += futureScore;
+      }
+    }
+    praxishState.db = prevDB;
+  }
+  // Sort actions by score and return the sorted list.
+  possibleActions.sort((a, b) => b.score - a.score);
+  return possibleActions;
+}
+
+// Given an `action`, assign it a `cleanName` property:
+// a string that names the action but doesn't include the actor name as a prefix,
+// to be displayed in the user interface.
+// FIXME Push this up into Praxish core instead of prepending actor name by default?
+function assignCleanName(action) {
+  const [actorName, ...actionNameParts] = action.name.split(":");
+  const actionName = actionNameParts.join(":").trim();
+  action.cleanName = actionName;
+}
+
 // Given a `praxishState`, determine whose turn it is to act,
 // select an action for that character to perform, and perform the action.
 function tick(praxishState) {
@@ -512,26 +578,19 @@ function tick(praxishState) {
   praxishState.actorIdx += 1;
   if (praxishState.actorIdx > praxishState.allChars.length - 1) praxishState.actorIdx = 0;
   const actor = praxishState.allChars[praxishState.actorIdx];
-  // Get all possible actions for the current actor.
-  const possibleActions = Praxish.getAllPossibleActions(praxishState, actor.name);
-  // Assign each action a "clean name" that doesn't include the actor name as a prefix.
-  // FIXME Push this up into Praxish core instead of prepending actor name by default?
-  possibleActions.forEach(action => {
-    const [actorName, ...actionNameParts] = action.name.split(":");
-    const actionName = actionNameParts.join(":").trim();
-    action.cleanName = actionName;
-  });
-  // Figure out what action to perform.
-  // Player actors should defer action performance to the UI;
-  // practice-bound actors should perform random available actions from their practice;
-  // actors with goals should select actions that seem to advance their goals;
-  // actors without goals can do whatever.
-  let actionToPerform = null;
+  // If this is a player actor, populate the UI with possible actions
+  // and wait for the player to pick one.
+  // Otherwise, pick and perform a reasonable action autonomously.
   if (praxishState.actorIdx === playerActorIdx) {
     // Pause and wait for the player to act
     pausedForPlayer = true;
     // Focus the query input
     queryInput.focus();
+    // Generate a list of possible actions
+    const possibleActions = Praxish.getAllPossibleActions(praxishState, actor.name);
+    // Assign each action a "clean name" that doesn't include the actor name as a prefix.
+    // FIXME Push this up into Praxish core instead of prepending actor name by default?
+    possibleActions.forEach(assignCleanName);
     // Update the query submit button to incorporate the current `possibleActions`,
     // and attach the same behavior to the Enter key on the query input
     const submitQueryButton = document.getElementById("submit");
@@ -546,52 +605,17 @@ function tick(praxishState) {
       const button = makeActionButton(praxishState, possibleAction);
       actionButtonsDiv.appendChild(button);
     }
-    // Break out early
-    return;
-  }
-  else if (actor.boundToPractice) {
-    // Filter possible actions to just those from the bound practice.
-    // FIXME We should probably move this logic into `getAllPossibleActions`
-    // so that we don't waste time generating actions that will never be performed.
-    const practiceActions = possibleActions.filter(pa => pa.practiceID === actor.boundToPractice);
-    actionToPerform = randNth(practiceActions);
-  }
-  else if (actor.goals && possibleActions.length > 0) {
-    // Speculatively perform each possible action
-    // and score the outcome according to the actor's goals.
-    for (const possibleAction of possibleActions) {
-      const prevDB = clone(praxishState.db);
-      Praxish.performAction(praxishState, possibleAction);
-      possibleAction.score = 0;
-      for (const goal of actor.goals) {
-        const results = Praxish.query(praxishState.db, goal.conditions, {});
-        possibleAction.score += (goal.utility * results.length);
-      }
-      praxishState.db = prevDB;
-    }
-    // Select an action for the actor to perform,
-    // randomly choosing among top-scoring actions for this actor's goals.
-    possibleActions.sort((a, b) => b.score - a.score);
-    const topScore = possibleActions[0].score;
-    const firstNonTopscoringIdx = possibleActions.findIndex(pa => pa.score < topScore);
-    if (firstNonTopscoringIdx > -1) {
-      const bestScoringActions = possibleActions.slice(0, firstNonTopscoringIdx);
-      actionToPerform = randNth(bestScoringActions);
-    }
-    else {
-      actionToPerform = randNth(possibleActions);
-    }
   }
   else {
-    // Select a random action to perform.
-    actionToPerform = randNth(possibleActions);
+    const scoredActions = scoreActions(praxishState, actor, 2);
+    const actionToPerform = pickAction(scoredActions);
+    if (!actionToPerform) {
+      console.warn("No actions to perform", actor.name);
+      return;
+    }
+    assignCleanName(actionToPerform);
+    actuallyDoAction(praxishState, actionToPerform);
   }
-  // Perform the action, if any.
-  if (!actionToPerform) {
-    console.warn("No actions to perform", actor.name);
-    return;
-  }
-  actuallyDoAction(praxishState, actionToPerform);
 }
 
 /// Initialize our Praxish instance
