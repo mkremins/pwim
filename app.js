@@ -425,8 +425,6 @@ const actionButtonsDiv = document.getElementById("otheractions");
 
 function actuallyDoAction(praxishState, action) {
   const transcriptDiv = document.getElementById("transcript");
-  const [actorName, ...actionNameParts] = action.name.split(":");
-  const actionName = actionNameParts.join(":");
   const actionHTML = `<div class="action">
     <span class="actorname">${action.Actor}</span>
     <span class="actionname">${action.cleanName}</span>
