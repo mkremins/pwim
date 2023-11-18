@@ -1,3 +1,13 @@
+// Step the `cursor` forward through the `list`,
+// cycling back to 0 if it would fall off the end.
+function advanceCursor(cursor, list) {
+  let nextCursor = cursor + 1;
+  if (nextCursor >= list.length) {
+    nextCursor = 0;
+  }
+  return nextCursor;
+}
+
 // Return a (deep) clone of any JSON-compatible `obj`.
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));

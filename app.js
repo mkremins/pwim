@@ -535,20 +535,31 @@ function scoreActions(praxishState, actor, searchDepth) {
     const prevDB = clone(praxishState.db);
     Praxish.performAction(praxishState, possibleAction);
     possibleAction.score = 0;
-    for (const goal of actor.goals || []) {
+    const goals = actor.goals || [];
+    for (const goal of goals) {
       const results = Praxish.query(praxishState.db, goal.conditions, {});
       possibleAction.score += (goal.utility * results.length);
-      if (searchDepth > 0) {
-        // Predict what we'll do in the future if we decide to take this action now,
-        // and add the value of our predicted future actions to this action's score.
-        // FIXME Should we speculatively act once as each other actor here
-        // before we simulate our own next action, so that others' predicted responses
-        // to our own action are also taken into account?
-        const possibleNextActions = scoreActions(praxishState, actor, searchDepth - 1);
-        const predictedNextAction = pickAction(possibleNextActions);
-        const futureScore = predictedNextAction?.score || 0;
-        possibleAction.score += futureScore;
-      }
+    }
+    if (searchDepth > 0 && goals.length > 0) {
+      // Predict what will happen in the future if we decide to take this action now,
+      // and add the value of predicted future actions to this action's score.
+      // First, predict what other actors might do next.
+      const prevActorIdx = praxishState.actorIdx;
+      do {
+        praxishState.actorIdx = advanceCursor(praxishState.actorIdx, praxishState.allChars);
+        const otherActor = praxishState.allChars[praxishState.actorIdx];
+        const possibleOtherActorActions = scoreActions(praxishState, otherActor);
+        const predictedOtherActorAction = pickAction(possibleOtherActorActions);
+        const otherActorFutureScore = predictedOtherActorAction?.score || 0;
+        possibleAction.score += otherActorFutureScore;
+      } while (praxishState.actorIdx !== prevActorIdx);
+      // Then predict what *we'll* probably do next.
+      // This part is recursive: it'll trigger additional rounds of prediction
+      // as needed to reach the specified `searchDepth`.
+      const possibleNextActions = scoreActions(praxishState, actor, searchDepth - 1);
+      const predictedNextAction = pickAction(possibleNextActions);
+      const futureScore = predictedNextAction?.score || 0;
+      possibleAction.score += futureScore;
     }
     praxishState.db = prevDB;
   }
@@ -573,8 +584,7 @@ function tick(praxishState) {
   // Bail out early if we're waiting on the player to act.
   if (pausedForPlayer) return;
   // Figure out whose turn it is to act. For now, turntaking will just be simple round-robin.
-  praxishState.actorIdx += 1;
-  if (praxishState.actorIdx > praxishState.allChars.length - 1) praxishState.actorIdx = 0;
+  praxishState.actorIdx = advanceCursor(praxishState.actorIdx, praxishState.allChars);
   const actor = praxishState.allChars[praxishState.actorIdx];
   // If this is a player actor, populate the UI with possible actions
   // and wait for the player to pick one.
