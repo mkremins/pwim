@@ -1,5 +1,23 @@
 /// Define practices
 
+const worldPractice = {
+  id: "world",
+  name: "The world exists",
+  roles: ["World"],
+  actions: [
+    {
+      name: "[Actor]: Go to [Place]",
+      conditions: [
+        "practice.world.World.at.Actor!OtherPlace",
+        "practice.world.World.connected.OtherPlace.Place"
+      ],
+      outcomes: [
+        "insert practice.world.World.at.Actor!Place"
+      ]
+    }
+  ]
+};
+
 const greetPractice = {
   id: "greet",
   name: "[Greeter] is greeting [Greeted]",
@@ -9,7 +27,9 @@ const greetPractice = {
       name: "[Actor]: Greet [Other]",
       conditions: [
         "eq Actor Greeter",
-        "eq Other Greeted"
+        "eq Other Greeted",
+        "practice.world.world.at.Actor!Place",
+        "practice.world.world.at.Other!Place",
       ],
       outcomes: [
         //"insert practice.respondToGreeting.Other.Actor",
@@ -31,14 +51,15 @@ const jukeboxPractice = {
     "songPart.beginning!middle",
     "songPart.middle!end"
   ],
-  roles: ["JukeboxGhost"],
+  roles: ["Place", "JukeboxGhost"],
   actions: [
     {
       name: "[Actor]: Queue up [Song] on the jukebox",
       conditions: [
         "not practice.jukebox.JukeboxGhost.playing",
         "practiceData.jukebox.song.Song",
-        "neq Actor JukeboxGhost"
+        "neq Actor JukeboxGhost",
+        "practice.world.world.at.Actor!Place",
       ],
       outcomes: [
         "insert practice.jukebox.JukeboxGhost.playing!Song!prebeginning"
@@ -77,7 +98,7 @@ const tendBarPractice = {
     "beverageType.soda!nonalcoholic",
     "beverageType.water!nonalcoholic"
   ],
-  roles: ["Bartender"],
+  roles: ["Place", "Bartender"],
   actions: [
     // Not sure how I feel about these join/leave actions,
     // but they seem useful for these kinds of group situations.
@@ -85,7 +106,8 @@ const tendBarPractice = {
       name: "[Actor]: Walk up to bar",
       conditions: [
         "neq Actor Bartender",
-        "not practice.tendBar.Bartender.customer.Actor"
+        "not practice.tendBar.Bartender.customer.Actor",
+        "practice.world.world.at.Actor!Place",
       ],
       outcomes: [
         "insert practice.tendBar.Bartender.customer.Actor"
@@ -116,7 +138,8 @@ const tendBarPractice = {
       name: "[Actor]: Fulfill [Customer]'s order",
       conditions: [
         "eq Actor Bartender",
-        "practice.tendBar.Bartender.customer.Customer!order!Beverage"
+        "practice.tendBar.Bartender.customer.Customer!order!Beverage",
+        "practice.world.world.at.Bartender!Place"
       ],
       outcomes: [
         "delete practice.tendBar.Bartender.customer.Customer!order",
@@ -161,7 +184,7 @@ const tendBarPractice = {
 const ticTacToePractice = {
   id: "ticTacToe",
   name: "[Player1] and [Player2] are playing tic-tac-toe",
-  roles: ["Player1", "Player2"],
+  roles: ["Place", "Player1", "Player2"],
   init: [
     // Who goes first?
     "insert practice.ticTacToe.Player1.Player2.whoseTurn!Player1!Player2",
@@ -187,7 +210,8 @@ const ticTacToePractice = {
         "not practice.ticTacToe.Player1.Player2.gameOver",
         "practice.ticTacToe.Player1.Player2.whoseTurn!Actor!Other",
         "practice.ticTacToe.Player1.Player2.player.Actor.piece!Piece",
-        "practice.ticTacToe.Player1.Player2.board.Row.Col!empty"
+        "practice.ticTacToe.Player1.Player2.board.Row.Col!empty",
+        "practice.world.world.at.Actor!Place",
       ],
       outcomes: [
         "insert practice.ticTacToe.Player1.Player2.board.Row.Col!Piece",
@@ -664,6 +688,12 @@ testPraxishState.allChars = [
     name: "isaac",
     goals: [
       {
+        name: "Serve customers",
+        utility: 5,
+        conditions: ["not practice.tendBar.Bartender.customer.Customer!order"]
+      },
+      {
+        name: "Preferentially serve Nic",
         utility: 5,
         conditions: ["not practice.tendBar.Bartender.customer.nic!order"]
       }
@@ -672,18 +702,55 @@ testPraxishState.allChars = [
   {
     name: "jukebox",
     boundToPractice: "jukebox"
+  },
+  {
+    name: "singer",
+    goals: [
+      {
+        utility: 5,
+        conditions: ["practice.world.world.at.singer!backstage"]
+      }
+    ]
   }
 ];
 
+Praxish.definePractice(testPraxishState, worldPractice);
+const placePairs = [
+  // outside to entrance
+  ["outside", "entrance"],
+  // entrance to main places
+  ["entrance", "barArea"],
+  ["entrance", "jukeboxCorner"],
+  ["entrance", "gamesCorner"],
+  ["entrance", "stageArea"],
+  // main place interconnections
+  ["barArea", "jukeboxCorner"],
+  ["barArea", "gamesCorner"],
+  ["barArea", "stageArea"],
+  ["jukeboxCorner", "gamesCorner"],
+  ["jukeboxCorner", "stageArea"],
+  ["gamesCorner", "stageArea"],
+  // stage-related places
+  ["stageArea", "onstage"],
+  ["onstage", "backstage"],
+];
+for (const [p1, p2] of placePairs) {
+  Praxish.performOutcome(testPraxishState, `insert practice.world.world.connected.${p1}.${p2}`);
+  Praxish.performOutcome(testPraxishState, `insert practice.world.world.connected.${p2}.${p1}`);
+}
+for (const actor of testPraxishState.allChars) {
+  Praxish.performOutcome(testPraxishState, `insert practice.world.world.at.${actor.name}!outside`);
+}
+Praxish.performOutcome(testPraxishState, "insert practice.world.world.at.isaac!barArea");
 Praxish.definePractice(testPraxishState, greetPractice);
 Praxish.performOutcome(testPraxishState, "insert practice.greet.max.isaac");
 Praxish.performOutcome(testPraxishState, "insert practice.greet.nic.max");
 Praxish.definePractice(testPraxishState, tendBarPractice);
-Praxish.performOutcome(testPraxishState, "insert practice.tendBar.isaac");
+Praxish.performOutcome(testPraxishState, "insert practice.tendBar.barArea.isaac");
 Praxish.definePractice(testPraxishState, ticTacToePractice);
-Praxish.performOutcome(testPraxishState, "insert practice.ticTacToe.max.nic");
+Praxish.performOutcome(testPraxishState, "insert practice.ticTacToe.gamesCorner.max.nic");
 Praxish.definePractice(testPraxishState, jukeboxPractice);
-Praxish.performOutcome(testPraxishState, "insert practice.jukebox.jukebox");
+Praxish.performOutcome(testPraxishState, "insert practice.jukebox.jukeboxCorner.jukebox");
 
 /// Kick off the run loop
 
