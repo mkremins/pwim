@@ -20,20 +20,33 @@ const worldPractice = {
 
 const greetPractice = {
   id: "greet",
-  name: "[Greeter] is greeting [Greeted]",
-  roles: ["Greeter", "Greeted"],
+  name: "People can greet one another",
+  roles: ["World"],
   actions: [
     {
       name: "[Actor]: Greet [Other]",
       conditions: [
-        "eq Actor Greeter",
-        "eq Other Greeted",
         "practice.world.world.at.Actor!Place",
         "practice.world.world.at.Other!Place",
+        "neq Actor Other",
+        "not practice.greet.World.alreadyGreeted.Actor.Other",
+        "not boundToPractice.Other"
       ],
       outcomes: [
+        "insert practice.greet.World.alreadyGreeted.Actor.Other",
         //"insert practice.respondToGreeting.Other.Actor",
-        "delete practice.greet.Actor.Other"
+      ]
+    },
+    {
+      name: "[Actor]: Take offense at [Other] not reciprocating greeting",
+      conditions: [
+        "practice.greet.World.alreadyGreeted.Actor.Other",
+        "not practice.greet.World.alreadyGreeted.Other.Actor",
+        "not boundToPractice.Other",
+        "not offended.Actor.Other.ignoredMyGreeting"
+      ],
+      outcomes: [
+        "insert offended.Actor.Other.ignoredMyGreeting",
       ]
     }
   ]
@@ -100,32 +113,11 @@ const tendBarPractice = {
   ],
   roles: ["Place", "Bartender"],
   actions: [
-    // Not sure how I feel about these join/leave actions,
-    // but they seem useful for these kinds of group situations.
-    {
-      name: "[Actor]: Walk up to bar",
-      conditions: [
-        "neq Actor Bartender",
-        "not practice.tendBar.Bartender.customer.Actor",
-        "practice.world.world.at.Actor!Place",
-      ],
-      outcomes: [
-        "insert practice.tendBar.Bartender.customer.Actor"
-      ]
-    },
-    {
-      name: "[Actor]: Walk away from bar",
-      conditions: [
-        "practice.tendBar.Bartender.customer.Actor"
-      ],
-      outcomes: [
-        "delete practice.tendBar.Bartender.customer.Actor"
-      ]
-    },
     {
       name: "[Actor]: Order [Beverage]",
       conditions: [
-        "practice.tendBar.Bartender.customer.Actor",
+        "neq Actor Bartender",
+        "practice.world.world.at.Actor!Place",
         "not practice.tendBar.Bartender.customer.Actor!beverage",
         "practiceData.tendBar.beverageType.Beverage"
       ],
@@ -139,6 +131,7 @@ const tendBarPractice = {
       conditions: [
         "eq Actor Bartender",
         "practice.tendBar.Bartender.customer.Customer!order!Beverage",
+        "practice.world.world.at.Customer!Place",
         "practice.world.world.at.Bartender!Place"
       ],
       outcomes: [
@@ -159,7 +152,8 @@ const tendBarPractice = {
     {
       name: "[Actor]: Spill [Beverage]",
       conditions: [
-        "practice.tendBar.Bartender.customer.Actor!beverage!Beverage"
+        "practice.tendBar.Bartender.customer.Actor!beverage!Beverage",
+        "practice.world.world.at.Actor!Place", // for now only allow spills *at* bar
       ],
       outcomes: [
         "delete practice.tendBar.Bartender.customer.Actor!beverage",
@@ -170,21 +164,42 @@ const tendBarPractice = {
     {
       name: "[Actor]: Clean up spill near [Customer]",
       conditions: [
-        "practice.tendBar.Bartender.customer.Customer!spill"
+        "practice.tendBar.Bartender.customer.Customer!spill",
+        "practice.world.world.at.Actor!Place",
       ],
       outcomes: [
         "delete practice.tendBar.Bartender.customer.Customer!spill"
         // FIXME mark politeness stuff for bartender vs spiller vs other customer cleaning it up?
         // make the bartender more annoyed?
       ]
-    }
+    },
+    {
+      name: "[Actor]: Take offense at [Bartender] being away from bar",
+      conditions: [
+        "neq Actor Bartender",
+        "practice.world.world.at.Actor!Place",
+        "not practice.world.world.at.Bartender!Place",
+        "not offended.Actor.Bartender.notTendingBar"
+      ],
+      outcomes: [
+        "insert offended.Actor.Bartender.notTendingBar"
+      ]
+    },
+    {
+      name: "[Actor]: Clean glass",
+      conditions: [
+        "eq Actor Bartender",
+        "practice.world.world.at.Bartender!Place"
+      ],
+      outcomes: []
+    },
   ]
 };
 
 const ticTacToePractice = {
   id: "ticTacToe",
   name: "[Player1] and [Player2] are playing tic-tac-toe",
-  roles: ["Place", "Player1", "Player2"],
+  roles: ["Player1", "Player2"],
   init: [
     // Who goes first?
     "insert practice.ticTacToe.Player1.Player2.whoseTurn!Player1!Player2",
@@ -211,7 +226,6 @@ const ticTacToePractice = {
         "practice.ticTacToe.Player1.Player2.whoseTurn!Actor!Other",
         "practice.ticTacToe.Player1.Player2.player.Actor.piece!Piece",
         "practice.ticTacToe.Player1.Player2.board.Row.Col!empty",
-        "practice.world.world.at.Actor!Place",
       ],
       outcomes: [
         "insert practice.ticTacToe.Player1.Player2.board.Row.Col!Piece",
@@ -529,6 +543,7 @@ let pausedForPlayer = false; // start unpaused
 // return the action that the actor should actually perform.
 function pickAction(scoredActions) {
   if (!scoredActions) return null;
+  /*
   const topScore = scoredActions[0].score;
   const firstNonTopscoringIdx = scoredActions.findIndex(pa => pa.score < topScore);
   if (firstNonTopscoringIdx > -1) {
@@ -536,6 +551,20 @@ function pickAction(scoredActions) {
     return randNth(bestScoringActions);
   }
   return randNth(scoredActions);
+  */
+  return scoredActions[0];
+}
+
+// Given an exclusion logic `db` and a list of actor `goals`,
+// return a numeric evaluation of the situation represented by the `db`
+// in terms of these `goals`.
+function evaluate(db, goals) {
+  let score = 0;
+  for (const goal of goals) {
+    const results = Praxish.query(db, goal.conditions, {});
+    score += (goal.utility * results.length);
+  }
+  return score;
 }
 
 // Given a `praxishState`, an `actor`, and a `searchDepth` (default: 0),
@@ -560,30 +589,41 @@ function scoreActions(praxishState, actor, searchDepth) {
     Praxish.performAction(praxishState, possibleAction);
     possibleAction.score = 0;
     const goals = actor.goals || [];
-    for (const goal of goals) {
-      const results = Praxish.query(praxishState.db, goal.conditions, {});
-      possibleAction.score += (goal.utility * results.length);
-    }
+    possibleAction.score = evaluate(praxishState.db, goals);
     if (searchDepth > 0 && goals.length > 0) {
       // Predict what will happen in the future if we decide to take this action now,
       // and add the value of predicted future actions to this action's score.
       // First, predict what other actors might do next.
+      const discountFactor = 0.9; // Discount future outcomes relative to immediate ones
+      const expectations = []; // Track our predictions of the future
       const prevActorIdx = praxishState.actorIdx;
-      do {
-        praxishState.actorIdx = advanceCursor(praxishState.actorIdx, praxishState.allChars);
+      praxishState.actorIdx = advanceCursor(praxishState.actorIdx, praxishState.allChars);
+      while (praxishState.actorIdx !== prevActorIdx) {
+        // Figure out whose turn it is to act next
         const otherActor = praxishState.allChars[praxishState.actorIdx];
+        // Predict their next action
         const possibleOtherActorActions = scoreActions(praxishState, otherActor);
         const predictedOtherActorAction = pickAction(possibleOtherActorActions);
-        const otherActorFutureScore = predictedOtherActorAction?.score || 0;
-        possibleAction.score += otherActorFutureScore;
-      } while (praxishState.actorIdx !== prevActorIdx);
+        // Determine how good or bad this next action would be for us
+        if (predictedOtherActorAction) {
+          Praxish.performAction(praxishState, predictedOtherActorAction);
+          const otherActorFutureScore = evaluate(praxishState.db, goals);
+          possibleAction.score += (discountFactor * otherActorFutureScore);
+          // Track our prediction
+          expectations.push([predictedOtherActorAction.name, otherActorFutureScore]);
+        }
+        // Advance to the next actor
+        praxishState.actorIdx = advanceCursor(praxishState.actorIdx, praxishState.allChars);
+      }
       // Then predict what *we'll* probably do next.
       // This part is recursive: it'll trigger additional rounds of prediction
       // as needed to reach the specified `searchDepth`.
       const possibleNextActions = scoreActions(praxishState, actor, searchDepth - 1);
       const predictedNextAction = pickAction(possibleNextActions);
       const futureScore = predictedNextAction?.score || 0;
-      possibleAction.score += futureScore;
+      possibleAction.score += (discountFactor * futureScore);
+      expectations.push([predictedNextAction?.name, predictedNextAction?.score]);
+      possibleAction.expectations = expectations.concat(predictedNextAction.expectations || []);
     }
     praxishState.db = prevDB;
   }
@@ -640,6 +680,7 @@ function tick(praxishState) {
   }
   else {
     const scoredActions = scoreActions(praxishState, actor, 2);
+    console.log("scoredActions", scoredActions);
     const actionToPerform = pickAction(scoredActions);
     if (!actionToPerform) {
       console.warn("No actions to perform", actor.name);
@@ -658,45 +699,90 @@ testPraxishState.allChars = [
     name: "max",
     goals: [
       {
+        name: "Win at tic-tac-toe",
         utility: 10,
         conditions: ["practice.ticTacToe.Player1.Player2.gameOver!max!Loser"]
       },
       {
+        name: "Order cider",
         utility: 5,
         conditions: ["practice.tendBar.Bartender.customer.max!order!cider"]
       },
       {
+        name: "Order soda",
         utility: 5,
         conditions: ["practice.tendBar.Bartender.customer.max!order!soda"]
-      }
+      },
+      {
+        name: "Avoid offending others",
+        utility: -50,
+        conditions: ["offended.Other.nic"]
+      },
+      {
+        name: "Take offense when expected",
+        utility: 1,
+        conditions: ["offended.max.Other"]
+      },
     ]
   },
   {
     name: "nic",
     goals: [
       {
+        name: "Win at tic-tac-toe",
         utility: 10,
         conditions: ["practice.ticTacToe.Player1.Player2.gameOver!nic!Loser"]
       },
       {
+        name: "Order beer",
         utility: 5,
         conditions: ["practice.tendBar.Bartender.customer.nic!order!beer"]
-      }
+      },
+      {
+        name: "Avoid offending others",
+        utility: -50,
+        conditions: ["offended.Other.nic"]
+      },
+      {
+        name: "Take offense when expected",
+        utility: 1,
+        conditions: ["offended.nic.Other"]
+      },
     ]
   },
   {
     name: "isaac",
     goals: [
       {
+        name: "Stay at the bar",
+        utility: 1,
+        conditions: ["practice.world.world.at.isaac!barArea"]
+      },
+      {
+        name: "Clean up spills",
+        utility: -2,
+        conditions: ["practice.tendBar.isaac.customer.Customer!spill"]
+      },
+      {
         name: "Serve customers",
-        utility: 5,
-        conditions: ["not practice.tendBar.Bartender.customer.Customer!order"]
+        utility: -5,
+        conditions: ["practice.tendBar.isaac.customer.Customer!order"]
       },
       {
         name: "Preferentially serve Nic",
-        utility: 5,
-        conditions: ["not practice.tendBar.Bartender.customer.nic!order"]
-      }
+        utility: -5,
+        conditions: ["practice.tendBar.isaac.customer.nic!order"]
+      },
+      {
+        name: "Avoid offending others",
+        utility: -50,
+        conditions: ["offended.Other.isaac"]
+      },
+      {
+        name: "Take offense when expected",
+        utility: 1,
+        conditions: ["offended.isaac.Other"]
+      },
     ]
   },
   {
@@ -707,9 +793,29 @@ testPraxishState.allChars = [
     name: "singer",
     goals: [
       {
+        name: "Relax backstage",
         utility: 5,
         conditions: ["practice.world.world.at.singer!backstage"]
-      }
+      },
+      {
+        name: "Avoid others",
+        utility: -3,
+        conditions: [
+          "practice.world.world.at.singer!Place",
+          "practice.world.world.at.Other!Place",
+          "neq Other singer"
+        ]
+      },
+      {
+        name: "Avoid offending others",
+        utility: -50,
+        conditions: ["offended.Other.singer"]
+      },
+      {
+        name: "Take offense when expected",
+        utility: 1,
+        conditions: ["offended.isaac.Other"]
+      },
     ]
   }
 ];
@@ -721,15 +827,11 @@ const placePairs = [
   // entrance to main places
   ["entrance", "barArea"],
   ["entrance", "jukeboxCorner"],
-  ["entrance", "gamesCorner"],
   ["entrance", "stageArea"],
   // main place interconnections
   ["barArea", "jukeboxCorner"],
-  ["barArea", "gamesCorner"],
   ["barArea", "stageArea"],
-  ["jukeboxCorner", "gamesCorner"],
   ["jukeboxCorner", "stageArea"],
-  ["gamesCorner", "stageArea"],
   // stage-related places
   ["stageArea", "onstage"],
   ["onstage", "backstage"],
@@ -743,13 +845,13 @@ for (const actor of testPraxishState.allChars) {
 }
 Praxish.performOutcome(testPraxishState, "insert practice.world.world.at.isaac!barArea");
 Praxish.definePractice(testPraxishState, greetPractice);
-Praxish.performOutcome(testPraxishState, "insert practice.greet.max.isaac");
-Praxish.performOutcome(testPraxishState, "insert practice.greet.nic.max");
+Praxish.performOutcome(testPraxishState, "insert practice.greet.world");
 Praxish.definePractice(testPraxishState, tendBarPractice);
 Praxish.performOutcome(testPraxishState, "insert practice.tendBar.barArea.isaac");
-Praxish.definePractice(testPraxishState, ticTacToePractice);
-Praxish.performOutcome(testPraxishState, "insert practice.ticTacToe.gamesCorner.max.nic");
+//Praxish.definePractice(testPraxishState, ticTacToePractice);
+//Praxish.performOutcome(testPraxishState, "insert practice.ticTacToe.max.nic");
 Praxish.definePractice(testPraxishState, jukeboxPractice);
+Praxish.performOutcome(testPraxishState, "insert boundToPractice.jukebox");
 Praxish.performOutcome(testPraxishState, "insert practice.jukebox.jukeboxCorner.jukebox");
 
 /// Kick off the run loop
