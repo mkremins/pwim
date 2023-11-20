@@ -3,19 +3,39 @@
 const queryInput = document.getElementById("query");
 const topActionsDiv = document.getElementById("priorityactions");
 const actionButtonsDiv = document.getElementById("otheractions");
+const transcriptDiv = document.getElementById("transcript");
 
 const playerActorIdx = 0; // player actor is first
 let pausedForPlayer = false; // start unpaused
 
+function prettifyName(name) {
+  return nameRenderers[name] || name;
+}
+
+function renderStateToText(praxishState) {
+  let allOutputSentences = [];
+  for (const [query, template] of sentenceRenderers) {
+    const results = DB.unify(query, praxishState.db, {});
+    for (const res of results) {
+      for (const [key, val] of Object.entries(res)) {
+        res[key] = prettifyName(val);
+      }
+    }
+    const sents = results.map(res => capitalizeFirst(Praxish.renderText(template, res)));
+    allOutputSentences = allOutputSentences.concat(sents);
+  }
+  return allOutputSentences.join(". ") + (allOutputSentences.length > 0 ? "." : "");
+}
+
 function actuallyDoAction(praxishState, action) {
-  const transcriptDiv = document.getElementById("transcript");
-  const actionHTML = `<div class="action">
-    <span class="actorname">${action.Actor}</span>
-    <span class="actionname">${action.cleanName}</span>
-  </div>`;
-  transcriptDiv.innerHTML = actionHTML + transcriptDiv.innerHTML;
   console.log("Performing action ::", action.name, action);
   Praxish.performAction(praxishState, action);
+  const actionHTML = `<div class="action">
+    <span class="actorname">${capitalizeFirst(prettifyName(action.Actor))}:</span>
+    <span class="actionname">${action.cleanName}</span><br>
+    <div class="statetext">${renderStateToText(praxishState)}</div>
+  </div>`;
+  transcriptDiv.innerHTML = actionHTML + transcriptDiv.innerHTML;
 }
 
 function makeActionButton(praxishState, action) {

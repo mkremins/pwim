@@ -8,6 +8,11 @@ function advanceCursor(cursor, list) {
   return nextCursor;
 }
 
+// Capitalize the first character of `str`.
+function capitalizeFirst(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 // Return a (deep) clone of any JSON-compatible `obj`.
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));

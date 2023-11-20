@@ -455,6 +455,41 @@ const ticTacToePractice = {
   ]
 };
 
+/// Define text renderers for individual DB sentences and named entities
+
+const sentenceRenderers = [
+  ["practice.world.world.at.Actor!Place",
+   "[Actor] is [Place]"],
+  ["offended.Actor.Other.Reason",
+   "[Actor] is offended at [Other]: '[Other] [Reason]'"],
+  ["practice.tendBar.Place.Bartender.customer.Actor.order.Drink",
+   "[Actor] is waiting for [Bartender] to serve them a [Drink]"],
+  ["practice.tendBar.Place.Bartender.customer.Actor!beverage!Drink",
+   "[Actor] has a [Drink]"],
+  ["practice.tendBar.Place.Bartender.customer.Actor!spill",
+   "There is a spill near [Actor]'s seat at the bar"],
+  ["practice.jukebox.JukeboxGhost.playing!Song!Part",
+   "The jukebox is playing the [Part] of [Song]"],
+];
+
+const nameRenderers = {
+  // characters
+  "max": "Max",
+  "nic": "Nic",
+  "isaac": "Isaac",
+  "singer": "the singer",
+  // places
+  "entrance": "near the entrance",
+  "barArea": "at the bar",
+  "jukeboxCorner": "in the corner by the jukebox",
+  "stageArea": "near the stage",
+  // reasons for offense
+  "ignoredMyGreeting": "ignored my greeting",
+  "notTendingBar": "is neglecting the bar",
+  // songs
+  "closingStar": "'Closing Star'",
+};
+
 /// Define characters
 
 const allCharacters = [
@@ -577,6 +612,7 @@ for (const actor of appPraxishState.allChars) {
   Praxish.performOutcome(appPraxishState, `insert practice.world.world.at.${actor.name}!outside`);
 }
 Praxish.performOutcome(appPraxishState, "insert practice.world.world.at.isaac!barArea");
+Praxish.performOutcome(appPraxishState, "delete practice.world.world.at.jukebox");
 Praxish.definePractice(appPraxishState, greetPractice);
 Praxish.performOutcome(appPraxishState, "insert practice.greet.world");
 Praxish.definePractice(appPraxishState, tendBarPractice);
