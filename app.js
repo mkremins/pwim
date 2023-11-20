@@ -543,7 +543,17 @@ let pausedForPlayer = false; // start unpaused
 // return the action that the actor should actually perform.
 function pickAction(scoredActions) {
   if (!scoredActions) return null;
-  /*
+  return scoredActions[0];
+}
+
+// Like `pickAction`, but chooses non-deterministically
+// between highly scoring actions to add variety.
+// Non-determinism complicates debugging and confuses the planner
+// (which limits combinatorial explosion on the turns of non-focal actors
+// by considering only a single possible next action per actor-turn),
+// so we've stopped using this for now.
+function pickActionNondeterministically(scoredActions) {
+  if (!scoredActions) return null;
   const topScore = scoredActions[0].score;
   const firstNonTopscoringIdx = scoredActions.findIndex(pa => pa.score < topScore);
   if (firstNonTopscoringIdx > -1) {
@@ -551,8 +561,6 @@ function pickAction(scoredActions) {
     return randNth(bestScoringActions);
   }
   return randNth(scoredActions);
-  */
-  return scoredActions[0];
 }
 
 // Given an exclusion logic `db` and a list of actor `goals`,
