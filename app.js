@@ -707,11 +707,6 @@ testPraxishState.allChars = [
     name: "max",
     goals: [
       {
-        name: "Win at tic-tac-toe",
-        utility: 10,
-        conditions: ["practice.ticTacToe.Player1.Player2.gameOver!max!Loser"]
-      },
-      {
         name: "Order cider",
         utility: 5,
         conditions: ["practice.tendBar.Bartender.customer.max!order!cider"]
@@ -736,11 +731,6 @@ testPraxishState.allChars = [
   {
     name: "nic",
     goals: [
-      {
-        name: "Win at tic-tac-toe",
-        utility: 10,
-        conditions: ["practice.ticTacToe.Player1.Player2.gameOver!nic!Loser"]
-      },
       {
         name: "Order beer",
         utility: 5,
@@ -856,8 +846,6 @@ Praxish.definePractice(testPraxishState, greetPractice);
 Praxish.performOutcome(testPraxishState, "insert practice.greet.world");
 Praxish.definePractice(testPraxishState, tendBarPractice);
 Praxish.performOutcome(testPraxishState, "insert practice.tendBar.barArea.isaac");
-//Praxish.definePractice(testPraxishState, ticTacToePractice);
-//Praxish.performOutcome(testPraxishState, "insert practice.ticTacToe.max.nic");
 Praxish.definePractice(testPraxishState, jukeboxPractice);
 Praxish.performOutcome(testPraxishState, "insert boundToPractice.jukebox");
 Praxish.performOutcome(testPraxishState, "insert practice.jukebox.jukeboxCorner.jukebox");
