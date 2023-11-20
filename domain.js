@@ -118,11 +118,11 @@ const tendBarPractice = {
       conditions: [
         "neq Actor Bartender",
         "practice.world.world.at.Actor!Place",
-        "not practice.tendBar.Bartender.customer.Actor!beverage",
+        "not practice.tendBar.Place.Bartender.customer.Actor!beverage",
         "practiceData.tendBar.beverageType.Beverage"
       ],
       outcomes: [
-        "insert practice.tendBar.Bartender.customer.Actor!order!Beverage"
+        "insert practice.tendBar.Place.Bartender.customer.Actor!order!Beverage"
         // TODO insert an obligation-to-act on the part of the bartender?
       ]
     },
@@ -130,45 +130,45 @@ const tendBarPractice = {
       name: "[Actor]: Fulfill [Customer]'s order",
       conditions: [
         "eq Actor Bartender",
-        "practice.tendBar.Bartender.customer.Customer!order!Beverage",
+        "practice.tendBar.Place.Bartender.customer.Customer!order!Beverage",
         "practice.world.world.at.Customer!Place",
         "practice.world.world.at.Bartender!Place"
       ],
       outcomes: [
-        "delete practice.tendBar.Bartender.customer.Customer!order",
-        "insert practice.tendBar.Bartender.customer.Customer!beverage!Beverage"
+        "delete practice.tendBar.Place.Bartender.customer.Customer!order",
+        "insert practice.tendBar.Place.Bartender.customer.Customer!beverage!Beverage"
       ]
     },
     {
       name: "[Actor]: Drink [Beverage]",
       conditions: [
-        "practice.tendBar.Bartender.customer.Actor!beverage!Beverage"
+        "practice.tendBar.Place.Bartender.customer.Actor!beverage!Beverage"
       ],
       outcomes: [
-        "delete practice.tendBar.Bartender.customer.Actor!beverage"
+        "delete practice.tendBar.Place.Bartender.customer.Actor!beverage"
         // TODO increase drunkenness if Beverage is alcoholic?
       ]
     },
     {
       name: "[Actor]: Spill [Beverage]",
       conditions: [
-        "practice.tendBar.Bartender.customer.Actor!beverage!Beverage",
+        "practice.tendBar.Place.Bartender.customer.Actor!beverage!Beverage",
         "practice.world.world.at.Actor!Place", // for now only allow spills *at* bar
       ],
       outcomes: [
-        "delete practice.tendBar.Bartender.customer.Actor!beverage",
-        "insert practice.tendBar.Bartender.customer.Actor!spill"
+        "delete practice.tendBar.Place.Bartender.customer.Actor!beverage",
+        "insert practice.tendBar.Place.Bartender.customer.Actor!spill"
         // FIXME maybe spawn a separate spill practice like James D was playing with?
       ]
     },
     {
       name: "[Actor]: Clean up spill near [Customer]",
       conditions: [
-        "practice.tendBar.Bartender.customer.Customer!spill",
+        "practice.tendBar.Place.Bartender.customer.Customer!spill",
         "practice.world.world.at.Actor!Place",
       ],
       outcomes: [
-        "delete practice.tendBar.Bartender.customer.Customer!spill"
+        "delete practice.tendBar.Place.Bartender.customer.Customer!spill"
         // FIXME mark politeness stuff for bartender vs spiller vs other customer cleaning it up?
         // make the bartender more annoyed?
       ]
@@ -464,12 +464,12 @@ const allCharacters = [
       {
         name: "Order cider",
         utility: 5,
-        conditions: ["practice.tendBar.Bartender.customer.max!order!cider"]
+        conditions: ["practice.tendBar.Place.Bartender.customer.max!order!cider"]
       },
       {
         name: "Order soda",
         utility: 5,
-        conditions: ["practice.tendBar.Bartender.customer.max!order!soda"]
+        conditions: ["practice.tendBar.Place.Bartender.customer.max!order!soda"]
       },
     ]
   },
@@ -479,7 +479,7 @@ const allCharacters = [
       {
         name: "Order beer",
         utility: 5,
-        conditions: ["practice.tendBar.Bartender.customer.nic!order!beer"]
+        conditions: ["practice.tendBar.Place.Bartender.customer.nic!order!beer"]
       },
     ]
   },
@@ -494,17 +494,17 @@ const allCharacters = [
       {
         name: "Clean up spills",
         utility: -2,
-        conditions: ["practice.tendBar.isaac.customer.Customer!spill"]
+        conditions: ["practice.tendBar.Place.isaac.customer.Customer!spill"]
       },
       {
         name: "Serve customers",
         utility: -5,
-        conditions: ["practice.tendBar.isaac.customer.Customer!order"]
+        conditions: ["practice.tendBar.Place.isaac.customer.Customer!order"]
       },
       {
         name: "Preferentially serve Nic",
         utility: -5,
-        conditions: ["practice.tendBar.isaac.customer.nic!order"]
+        conditions: ["practice.tendBar.Place.isaac.customer.nic!order"]
       },
     ]
   },
