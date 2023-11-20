@@ -724,7 +724,7 @@ testPraxishState.allChars = [
       {
         name: "Avoid offending others",
         utility: -50,
-        conditions: ["offended.Other.nic"]
+        conditions: ["offended.Other.max"]
       },
       {
         name: "Take offense when expected",
